@@ -1,0 +1,1821 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Process Scheduling Visualizer (Fixed)</title>
+
+<style>
+:root {
+--bg: #f4f7fb;
+--panel: #ffffff;
+--panel-alt: #eef3ff;
+--text: #1f2937;
+--muted: #6b7280;
+--line: #dfe7f5;
+--blue: #3b82f6;
+--green: #22c55e;
+--orange: #f59e0b;
+--red: #ef4444;
+--gray: #64748b;
+--shadow: 0 8px 24px rgba(31,41,55,.08);
+}
+
+* { box-sizing: border-box; }
+
+body {
+margin: 0;
+font-family: "Segoe UI", Tahoma, sans-serif;
+background: linear-gradient(135deg,#eef4ff,#f8fafc);
+color: var(--text);
+}
+
+.app {
+max-width: 1500px;
+margin: auto;
+padding: 24px;
+}
+
+.header {
+display: flex;
+justify-content: space-between;
+align-items: center;
+flex-wrap: wrap;
+gap: 16px;
+margin-bottom: 20px;
+}
+
+.title-wrap h1 {
+margin: 0;
+font-size: clamp(1.8rem,2.5vw,2.8rem);
+}
+
+.title-wrap p {
+color: var(--muted);
+margin: 6px 0 0;
+}
+
+.controls {
+display: flex;
+flex-wrap: wrap;
+align-items: center;
+gap: 12px;
+}
+
+.select-wrap {
+display: flex;
+align-items: center;
+gap: 10px;
+background: white;
+border: 1px solid var(--line);
+border-radius: 12px;
+padding: 8px 12px;
+box-shadow: var(--shadow);
+font-weight: 600;
+}
+
+.select-wrap select,
+.select-wrap input {
+border: none;
+background: transparent;
+font-size: .95rem;
+outline: none;
+color: var(--text);
+width: 65px;
+}
+
+button {
+border: none;
+border-radius: 12px;
+padding: 12px 18px;
+font-size: .95rem;
+cursor: pointer;
+font-weight: 700;
+box-shadow: var(--shadow);
+}
+
+button:hover { transform: translateY(-1px); }
+
+.primary { background: var(--blue); color: white; }
+.secondary { background: #e2e8f0; color: var(--text); }
+.danger { background: var(--red); color: white; }
+
+.panel,
+.process-panel,
+.status-box,
+.log-panel,
+.summary-table-wrap,
+.diagram-panel {
+background: var(--panel);
+border: 1px solid var(--line);
+border-radius: 18px;
+box-shadow: var(--shadow);
+}
+
+.process-panel {
+padding: 16px;
+margin-bottom: 20px;
+}
+
+.panel-header {
+display: flex;
+justify-content: space-between;
+align-items: center;
+margin-bottom: 12px;
+}
+
+.panel-header h2 { margin: 0; font-size: 1.2rem; }
+
+.process-controls {
+display: grid;
+grid-template-columns: 1fr 1fr 1fr 1fr;
+gap: 12px;
+align-items: end;
+}
+
+.field {
+display: flex;
+flex-direction: column;
+gap: 6px;
+font-size: .9rem;
+color: var(--muted);
+font-weight: 600;
+}
+
+.field input {
+padding: 10px 12px;
+border: 1px solid var(--line);
+border-radius: 10px;
+font-size: .95rem;
+}
+
+.process-table-container {
+margin-top: 16px;
+overflow-x: auto;
+}
+
+table {
+width: 100%;
+border-collapse: collapse;
+background: white;
+border: 1px solid var(--line);
+}
+
+th, td {
+border: 1px solid var(--line);
+padding: 10px 8px;
+text-align: center;
+font-size: .92rem;
+}
+
+th {
+background: var(--panel-alt);
+font-weight: 700;
+}
+
+input[data-field] {
+width: 100%;
+padding: 8px 6px;
+border: 1px solid var(--line);
+border-radius: 8px;
+text-align: center;
+}
+
+.status-bar {
+display: grid;
+grid-template-columns: repeat(3,minmax(220px,1fr));
+gap: 18px;
+margin-bottom: 20px;
+}
+
+.status-box { padding: 16px 18px; }
+
+.cpu-box {
+display: flex;
+align-items: center;
+justify-content: space-between;
+gap: 12px;
+background: linear-gradient(135deg,#e0f2fe,#f8fafc);
+border: 2px solid var(--blue);
+}
+
+.cpu-label {
+font-weight: 700;
+color: var(--blue);
+font-size: 1.1rem;
+}
+
+.cpu-process {
+font-weight: 800;
+font-size: 1.3rem;
+}
+
+.stats {
+display: flex;
+gap: 12px;
+flex-wrap: wrap;
+margin-top: 10px;
+color: var(--muted);
+font-size: .92rem;
+font-weight: 600;
+}
+
+.stats span {
+background: var(--panel-alt);
+padding: 8px 10px;
+border-radius: 10px;
+}
+
+.queue-box {
+display: flex;
+flex-wrap: wrap;
+gap: 10px;
+min-height: 58px;
+align-items: center;
+}
+
+.queue-chip {
+padding: 8px 12px;
+border-radius: 10px;
+border: 2px solid var(--line);
+background: #f8fafc;
+font-weight: 700;
+}
+
+.empty {
+color: var(--muted);
+font-style: italic;
+}
+
+.board {
+display: grid;
+grid-template-columns: 1.3fr .7fr;
+gap: 20px;
+margin-bottom: 20px;
+}
+
+.panel { padding: 16px; }
+
+.pcb-grid {
+display: grid;
+grid-template-columns: repeat(auto-fit,minmax(220px,1fr));
+gap: 18px;
+}
+
+.pcb-card {
+width: 100%;
+max-width: 260px;
+border-radius: 16px;
+border: 3px solid var(--line);
+background: linear-gradient(180deg,#fff,#f8fbff);
+padding: 12px;
+position: relative;
+overflow: hidden;
+}
+
+.pcb-card::before {
+content: "";
+position: absolute;
+inset: 0 auto 0 0;
+width: 8px;
+background: var(--state-color,var(--gray));
+}
+
+.pcb-title {
+font-size: 1rem;
+font-weight: 800;
+margin-bottom: 8px;
+}
+
+.pcb-fields {
+display: grid;
+grid-template-columns: repeat(2,minmax(90px,1fr));
+gap: 7px 10px;
+font-size: .8rem;
+}
+
+.pcb-fields div {
+background: rgba(148,163,184,.08);
+border-radius: 10px;
+padding: 6px 8px;
+border: 1px solid rgba(148,163,184,.12);
+overflow-wrap: anywhere;
+}
+
+.pcb-fields strong {
+display: block;
+font-size: .68rem;
+text-transform: uppercase;
+color: var(--muted);
+margin-bottom: 4px;
+}
+
+.state-pill {
+display: inline-block;
+padding: 4px 8px;
+border-radius: 999px;
+color: white;
+font-size: .72rem;
+font-weight: 700;
+margin-bottom: 8px;
+background: var(--state-color,var(--gray));
+}
+
+.log-panel { padding: 16px; }
+
+.log {
+background: #f8fafc;
+border: 1px solid var(--line);
+border-radius: 12px;
+padding: 12px;
+min-height: 220px;
+max-height: 360px;
+overflow-y: auto;
+font-family: Consolas,monospace;
+font-size: .9rem;
+line-height: 1.6;
+}
+
+.log-line { margin: 0 0 6px; white-space: pre-wrap; }
+
+.legend {
+display: flex;
+flex-wrap: wrap;
+gap: 10px;
+margin-top: 12px;
+color: var(--muted);
+font-size: .82rem;
+}
+
+.legend-item {
+display: inline-flex;
+align-items: center;
+gap: 8px;
+background: #f8fafc;
+border: 1px solid var(--line);
+border-radius: 999px;
+padding: 6px 10px;
+}
+
+.dot {
+width: 12px;
+height: 12px;
+border-radius: 50%;
+}
+
+.dot-blue { background: var(--blue); }
+.dot-green { background: var(--green); }
+.dot-orange { background: var(--orange); }
+.dot-red { background: var(--red); }
+.dot-gray { background: var(--gray); }
+
+.diagram-panel {
+padding: 16px;
+margin-bottom: 20px;
+}
+
+.gantt-chart {
+display: flex;
+align-items: stretch;
+overflow-x: auto;
+padding: 12px 0;
+gap: 2px;
+min-height: 70px;
+}
+
+.gantt-block {
+display: flex;
+flex-direction: column;
+align-items: center;
+justify-content: center;
+min-width: 44px;
+padding: 6px 4px;
+border-radius: 6px;
+color: white;
+font-weight: 700;
+font-size: 0.82rem;
+position: relative;
+box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.gantt-block .time-marker {
+position: absolute;
+bottom: -22px;
+font-size: 0.72rem;
+color: var(--muted);
+font-weight: 600;
+}
+
+.gantt-block .time-start { left: 2px; }
+.gantt-block .time-end { right: 2px; }
+
+.summary-table-wrap {
+padding: 16px;
+overflow-x: auto;
+margin-bottom: 20px;
+}
+
+.metric-grid {
+display: grid;
+grid-template-columns: repeat(4,minmax(120px,1fr));
+gap: 12px;
+margin-top: 16px;
+}
+
+.metric-box {
+background: linear-gradient(135deg,#f8fafc,#eef3ff);
+border: 1px solid var(--line);
+border-radius: 12px;
+padding: 12px;
+text-align: center;
+}
+
+.metric-label {
+font-size: .74rem;
+text-transform: uppercase;
+color: var(--muted);
+margin-bottom: 8px;
+font-weight: 700;
+}
+
+.metric-value {
+font-size: 1.2rem;
+font-weight: 800;
+}
+
+@media(max-width:900px) {
+.board,.status-bar { grid-template-columns: 1fr; }
+.process-controls { grid-template-columns: repeat(2,minmax(180px,1fr)); }
+.metric-grid { grid-template-columns: repeat(2,minmax(120px,1fr)); }
+}
+
+@media(max-width:560px) {
+.app { padding: 16px; }
+.controls { width: 100%; }
+.controls button { flex: 1 1 100%; }
+.process-controls,.pcb-grid,.metric-grid { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+
+<body>
+
+<div class="app">
+
+<div class="header">
+<div class="title-wrap">
+<h1 style="font-style: normal; font-weight: 700; font-size: 29px; text-align: center">Process State & Context Switching Visualizer</h1>
+</div>
+
+<div class="controls">
+<div class="select-wrap">
+<span>Algorithm:</span>
+<select id="algorithmSelect">
+<option value="fcfs">FCFS</option>
+<option value="sjf">Non-preemptive SJF</option>
+<option value="priority">Priority</option>
+<option value="rr" selected>Round Robin</option>
+</select>
+</div>
+
+<label class="select-wrap">
+<span>RR Quantum:</span>
+<input id="rrQuantumInput" type="number" min="1" max="20" value="2">
+</label>
+
+<button class="primary" id="startStopBtn">Start</button>
+<button class="secondary" id="stepBtn">Step</button>
+<button class="danger" id="resetBtn">Reset</button>
+</div>
+</div>
+
+<div class="panel process-panel">
+<div class="panel-header">
+<h2>Manual Process Entry</h2>
+</div>
+
+<div class="process-controls">
+<div class="field">
+<label for="processCountInput">Number of Processes</label>
+<input id="processCountInput" type="number" min="1" max="20" value="4">
+</div>
+
+<button class="secondary" id="generateRowsBtn">Generate Rows</button>
+<button class="secondary" id="addRowBtn">Add Row</button>
+<button class="primary" id="applyBtn">Apply Processes</button>
+</div>
+
+<div id="processTableContainer" class="process-table-container"></div>
+</div>
+
+<div class="status-bar">
+
+<div class="status-box cpu-box">
+<div>
+<div class="cpu-label">CPU</div>
+<div class="stats">
+<span id="tickStat">Tick: 0</span>
+<span id="modeStat">Mode: Idle</span>
+</div>
+</div>
+<div id="cpuProcess" class="cpu-process">Idle</div>
+</div>
+
+<div class="status-box">
+<h3>Ready Queue</h3>
+<div id="readyQueue" class="queue-box"></div>
+</div>
+
+<div class="status-box">
+<h3>Process Summary</h3>
+<div class="stats">
+<span id="totalProcesses">Total: 0</span>
+<span id="runningCount">Running: 0</span>
+<span id="waitingCount">Waiting: 0</span>
+</div>
+</div>
+
+</div>
+
+<!-- Gantt Chart Panel -->
+<div class="diagram-panel">
+<h2>Execution Timeline (Gantt Chart)</h2>
+<div id="ganttChart" class="gantt-chart">
+<div class="empty">Timeline will populate as CPU executes ticks...</div>
+</div>
+</div>
+
+<div class="board">
+
+<section class="panel">
+<div class="panel-header">
+<h2>Process Control Blocks (PCBs)</h2>
+</div>
+<div id="pcbGrid" class="pcb-grid"></div>
+</section>
+
+<aside class="log-panel">
+<h2>Simulation Log</h2>
+<div id="log" class="log"></div>
+
+<div class="legend">
+<span class="legend-item"><span class="dot dot-blue"></span>New</span>
+<span class="legend-item"><span class="dot dot-green"></span>Ready</span>
+<span class="legend-item"><span class="dot dot-red"></span>Waiting</span>
+<span class="legend-item"><span class="dot dot-orange"></span>Running</span>
+<span class="legend-item"><span class="dot dot-gray"></span>Terminated</span>
+</div>
+</aside>
+
+</div>
+
+<div class="summary-table-wrap">
+<h2>Performance Summary</h2>
+
+<table>
+<thead>
+<tr>
+<th>PID</th>
+<th>Arrival</th>
+<th>Burst</th>
+<th>Priority</th>
+<th>Completion</th>
+<th>Waiting</th>
+<th>Turnaround</th>
+<th>Response</th>
+<th>State</th>
+</tr>
+</thead>
+<tbody id="summaryTableBody"></tbody>
+</table>
+</div>
+
+<div class="metric-grid">
+
+<div class="metric-box">
+<div class="metric-label">Avg Waiting</div>
+<div class="metric-value" id="avgWaitingValue">0.00</div>
+</div>
+
+<div class="metric-box">
+<div class="metric-label">Avg Turnaround</div>
+<div class="metric-value" id="avgTurnaroundValue">0.00</div>
+</div>
+
+<div class="metric-box">
+<div class="metric-label">Avg Response</div>
+<div class="metric-value" id="avgResponseValue">0.00</div>
+</div>
+
+<div class="metric-box">
+<div class="metric-label">CPU Utilization</div>
+<div class="metric-value" id="cpuUtilValue">0.00%</div>
+</div>
+
+</div>
+
+</div>
+
+<script>
+
+const stateColors = {
+NEW: "#3b82f6",
+READY: "#22c55e",
+RUNNING: "#f59e0b",
+WAITING: "#ef4444",
+TERMINATED: "#64748b"
+};
+
+const processColors = [
+"#3b82f6", "#10b981", "#f59e0b", "#8b5cf6",
+"#ec4899", "#06b6d4", "#f97316", "#14b8a6"
+];
+
+let selectedAlgorithm = "rr";
+
+let processes = [];
+let readyQueue = [];
+let currentProcess = null;
+
+let tick = 0;
+let autoTimer = null;
+let autoRunning = false;
+let rrSliceUsed = 0;
+let ganttHistory = [];
+
+
+// -----------------------------
+// LOGGING
+// -----------------------------
+
+function logMessage(message) {
+const logEl = document.getElementById("log");
+
+const line = document.createElement("div");
+line.className = "log-line";
+line.textContent = message;
+
+logEl.appendChild(line);
+logEl.scrollTop = logEl.scrollHeight;
+}
+
+function initLog() {
+document.getElementById("log").innerHTML = "";
+}
+
+
+// -----------------------------
+// PROCESS TABLE
+// -----------------------------
+
+function generateDefaultRows(count = 4) {
+return Array.from({length: count}, (_, i) => ({
+pid: "P" + (i + 1),
+arrival: i,
+burst: 3 + i * 2,
+priority: i + 1
+}));
+}
+
+function renderProcessTable(rows = []) {
+
+const container = document.getElementById("processTableContainer");
+container.innerHTML = "";
+
+if (!rows.length) {
+rows = generateDefaultRows(
+Number(document.getElementById("processCountInput").value) || 4
+);
+}
+
+const table = document.createElement("table");
+table.id = "processTable";
+
+const thead = document.createElement("thead");
+
+thead.innerHTML = `
+<tr>
+<th>PID</th>
+<th>Arrival</th>
+<th>Burst</th>
+<th>Priority</th>
+<th>Delete</th>
+</tr>
+`;
+
+const tbody = document.createElement("tbody");
+
+rows.forEach((row, index) => {
+
+const tr = document.createElement("tr");
+
+const fields = [
+["pid", "text", row.pid],
+["arrival", "number", row.arrival],
+["burst", "number", row.burst],
+["priority", "number", row.priority]
+];
+
+fields.forEach(([name, type, value]) => {
+
+const td = document.createElement("td");
+const input = document.createElement("input");
+
+input.dataset.field = name;
+input.type = type;
+input.value = value;
+
+if (name === "arrival") input.min = "0";
+if (name === "burst" || name === "priority") input.min = "1";
+
+td.appendChild(input);
+tr.appendChild(td);
+
+});
+
+const deleteCell = document.createElement("td");
+const deleteButton = document.createElement("button");
+
+deleteButton.className = "danger";
+deleteButton.textContent = "Delete";
+
+deleteButton.addEventListener("click", () => {
+const currentRows = readProcessTableRows();
+currentRows.splice(index, 1);
+renderProcessTable(currentRows);
+});
+
+deleteCell.appendChild(deleteButton);
+tr.appendChild(deleteCell);
+
+tbody.appendChild(tr);
+
+});
+
+table.appendChild(thead);
+table.appendChild(tbody);
+container.appendChild(table);
+}
+
+
+function readProcessTableRows() {
+
+const table = document.getElementById("processTable");
+
+if (!table) return [];
+
+const rows = [];
+
+table.querySelectorAll("tbody tr").forEach((tr, index) => {
+
+const getValue = name =>
+tr.querySelector(`[data-field="${name}"]`).value;
+
+const pid = getValue("pid").trim() || "P" + (index + 1);
+const arrival = Number(getValue("arrival"));
+const burst = Number(getValue("burst"));
+const priority = Number(getValue("priority"));
+
+rows.push({
+pid,
+arrival,
+burst,
+priority
+});
+
+});
+
+return rows;
+}
+
+
+// -----------------------------
+// APPLY PROCESSES
+// -----------------------------
+
+function applyManualProcesses() {
+
+const rows = readProcessTableRows();
+
+if (!rows.length) {
+alert("Please add at least one process.");
+return;
+}
+
+const ids = rows.map(p => p.pid);
+
+if (new Set(ids).size !== ids.length) {
+alert("Process IDs must be unique.");
+return;
+}
+
+for (const p of rows) {
+
+if (
+!Number.isInteger(p.arrival) ||
+p.arrival < 0 ||
+!Number.isInteger(p.burst) ||
+p.burst < 1 ||
+!Number.isInteger(p.priority) ||
+p.priority < 1
+) {
+alert("Arrival must be 0 or greater. Burst and priority must be positive integers.");
+return;
+}
+
+}
+
+processes = rows.map((row, idx) => ({
+id: row.pid,
+pid: row.pid,
+color: processColors[idx % processColors.length],
+
+arrival: row.arrival,
+burst: row.burst,
+burstLeft: row.burst,
+
+priority: row.priority,
+
+pc: 0,
+cpuTime: 0,
+
+state: "NEW",
+
+completionTime: null,
+waitingTime: 0,
+turnaroundTime: 0,
+responseTime: null,
+
+firstRunStart: null,
+
+registers: {
+pc: 0,
+sp: row.burst,
+ax: 0,
+bx: row.priority
+}
+}));
+
+readyQueue = [];
+currentProcess = null;
+ganttHistory = [];
+
+tick = 0;
+rrSliceUsed = 0;
+
+stop();
+
+initLog();
+
+logMessage("Processes applied.");
+logMessage(
+"Scheduling algorithm: " + selectedAlgorithm.toUpperCase()
+);
+
+render();
+
+}
+
+
+// -----------------------------
+// ARRIVAL MANAGEMENT (FIXED)
+// -----------------------------
+
+function addArrivedProcessesAt(targetTime) {
+// Sort newly arriving processes by arrival time, then by initial table order
+const newlyArrived = processes
+.filter(p => p.state === "NEW" && p.arrival <= targetTime)
+.sort((a, b) => a.arrival - b.arrival || processes.indexOf(a) - processes.indexOf(b));
+
+for (const proc of newlyArrived) {
+proc.state = "READY";
+readyQueue.push(proc);
+
+logMessage(
+`Tick ${targetTime}: ${proc.id} enters READY queue`
+);
+}
+}
+
+function addArrivedProcesses() {
+addArrivedProcessesAt(tick);
+}
+
+
+function advanceToNextArrival() {
+
+const future = processes.filter(
+p => p.state === "NEW"
+);
+
+if (!future.length) return false;
+
+const nextArrival = Math.min(
+...future.map(p => p.arrival)
+);
+
+if (nextArrival > tick) {
+
+logMessage(
+`Tick ${tick}: CPU idle, jumping to tick ${nextArrival}`
+);
+
+// Record idle period in Gantt chart
+if (ganttHistory.length > 0 && ganttHistory[ganttHistory.length - 1].pid === "Idle") {
+ganttHistory[ganttHistory.length - 1].end = nextArrival;
+} else {
+ganttHistory.push({ pid: "Idle", start: tick, end: nextArrival, color: "#94a3b8" });
+}
+
+tick = nextArrival;
+
+return true;
+}
+
+return false;
+
+}
+
+
+// -----------------------------
+// READY QUEUE ORDER
+// -----------------------------
+
+function getReadyQueueOrder() {
+
+if (selectedAlgorithm === "fcfs") {
+
+return [...readyQueue].sort((a,b) =>
+a.arrival - b.arrival ||
+processes.indexOf(a) - processes.indexOf(b)
+);
+
+}
+
+if (selectedAlgorithm === "sjf") {
+
+return [...readyQueue].sort((a,b) =>
+a.burstLeft - b.burstLeft ||
+a.arrival - b.arrival ||
+processes.indexOf(a) - processes.indexOf(b)
+);
+
+}
+
+if (selectedAlgorithm === "priority") {
+
+return [...readyQueue].sort((a,b) =>
+a.priority - b.priority ||
+a.arrival - b.arrival ||
+processes.indexOf(a) - processes.indexOf(b)
+);
+
+}
+
+return [...readyQueue];
+
+}
+
+
+// -----------------------------
+// CONTEXT SWITCHING
+// -----------------------------
+
+function saveContext(proc) {
+
+proc.registers.pc = proc.pc;
+proc.registers.sp = proc.burstLeft;
+proc.registers.ax = proc.cpuTime;
+proc.registers.bx = proc.priority;
+
+}
+
+function restoreContext(proc) {
+
+proc.pc = proc.registers.pc;
+proc.burstLeft = proc.registers.sp;
+proc.cpuTime = proc.registers.ax;
+
+}
+
+
+// -----------------------------
+// DISPATCH PROCESS
+// -----------------------------
+
+function selectNextProcess() {
+
+if (!readyQueue.length) return null;
+
+let next;
+
+if (selectedAlgorithm === "rr") {
+
+next = readyQueue.shift();
+
+} else {
+
+const ordered = getReadyQueueOrder();
+
+next = ordered[0];
+
+readyQueue = readyQueue.filter(
+p => p !== next
+);
+
+}
+
+next.state = "RUNNING";
+
+currentProcess = next;
+
+restoreContext(next);
+
+/*
+CORRECT RESPONSE TIME FORMULA:
+Response Time = First CPU Start Time - Arrival Time
+Calculated only on the very first dispatch.
+*/
+
+if (next.firstRunStart === null) {
+
+next.firstRunStart = tick;
+
+next.responseTime =
+next.firstRunStart - next.arrival;
+
+logMessage(
+`${next.id}: First CPU allocation at tick ${tick}. Response Time = ${next.responseTime}`
+);
+
+}
+
+rrSliceUsed = 0;
+
+logMessage(
+`Tick ${tick}: Dispatching ${next.id} to CPU (${selectedAlgorithm.toUpperCase()})`
+);
+
+return next;
+
+}
+
+
+// -----------------------------
+// PROCESS COMPLETION
+// -----------------------------
+
+function finalizeProcess(proc) {
+
+proc.state = "TERMINATED";
+
+proc.completionTime = tick + 1;
+
+proc.turnaroundTime =
+proc.completionTime - proc.arrival;
+
+proc.waitingTime =
+proc.turnaroundTime - proc.burst;
+
+proc.responseTime =
+proc.firstRunStart !== null
+? proc.firstRunStart - proc.arrival
+: 0;
+
+logMessage(
+`Tick ${tick}: ${proc.id} TERMINATED at tick ${proc.completionTime}. Completion=${proc.completionTime}, Waiting=${proc.waitingTime}, Turnaround=${proc.turnaroundTime}, Response=${proc.responseTime}`
+);
+
+}
+
+
+// -----------------------------
+// SIMULATION STEP (FIXED)
+// -----------------------------
+
+function stepSimulation() {
+
+if (!processes.length) {
+logMessage("No processes loaded.");
+return;
+}
+
+if (
+processes.every(p => p.state === "TERMINATED")
+) {
+logMessage("All processes are finished.");
+stop();
+return;
+}
+
+// 1. Add processes that arrived at or before current tick
+addArrivedProcesses();
+
+// 2. Jump over idle periods when no process is ready
+if (!currentProcess && !readyQueue.length) {
+
+const moved = advanceToNextArrival();
+
+if (moved) {
+addArrivedProcesses();
+}
+
+}
+
+// 3. Dispatch a process if CPU is free
+if (!currentProcess && readyQueue.length) {
+
+selectNextProcess();
+
+}
+
+// 4. CPU remains idle if no process was ready
+if (!currentProcess) {
+if (ganttHistory.length > 0 && ganttHistory[ganttHistory.length - 1].pid === "Idle") {
+ganttHistory[ganttHistory.length - 1].end = tick + 1;
+} else {
+ganttHistory.push({ pid: "Idle", start: tick, end: tick + 1, color: "#94a3b8" });
+}
+tick++;
+render();
+return;
+
+}
+
+const proc = currentProcess;
+
+// 5. Execute exactly one CPU tick [tick, tick + 1)
+proc.pc++;
+proc.cpuTime++;
+proc.burstLeft--;
+
+rrSliceUsed++;
+
+saveContext(proc);
+
+// Update Gantt history
+if (ganttHistory.length > 0 && ganttHistory[ganttHistory.length - 1].pid === proc.id) {
+ganttHistory[ganttHistory.length - 1].end = tick + 1;
+} else {
+ganttHistory.push({ pid: proc.id, start: tick, end: tick + 1, color: proc.color });
+}
+
+logMessage(
+`Tick ${tick}: ${proc.id} executes 1 tick -> PC=${proc.pc}, BurstLeft=${proc.burstLeft}, CPUTime=${proc.cpuTime}`
+);
+
+const nextTick = tick + 1;
+
+// 6. Check if process completed
+if (proc.burstLeft <= 0) {
+
+finalizeProcess(proc);
+
+currentProcess = null;
+rrSliceUsed = 0;
+
+// Add any processes arriving at nextTick to the ready queue
+addArrivedProcessesAt(nextTick);
+
+}
+
+// 7. Round Robin quantum expiration
+// CRITICAL FIX: Newly arriving processes at nextTick MUST enter the ready queue
+// BEFORE the preempted process is appended to the back of the queue!
+else if (
+selectedAlgorithm === "rr" &&
+rrSliceUsed >= getQuantum()
+) {
+
+logMessage(
+`RR: Quantum (${getQuantum()}) expired for ${proc.id} at tick ${nextTick}. Context switch triggered.`
+);
+
+proc.state = "READY";
+saveContext(proc);
+
+// 1) Enqueue all processes arriving at nextTick first
+addArrivedProcessesAt(nextTick);
+
+// 2) Then append the preempted process to the rear
+readyQueue.push(proc);
+
+currentProcess = null;
+rrSliceUsed = 0;
+
+}
+
+// 8. Advance clock tick
+tick++;
+
+render();
+
+}
+
+
+// -----------------------------
+// ROUND ROBIN QUANTUM
+// -----------------------------
+
+function getQuantum() {
+
+const value = Number(
+document.getElementById("rrQuantumInput").value
+);
+
+if (
+!Number.isInteger(value) ||
+value < 1 ||
+value > 20
+) {
+return 2;
+}
+
+return value;
+
+}
+
+
+// -----------------------------
+// RENDER READY QUEUE
+// -----------------------------
+
+function renderReadyQueue() {
+
+const el = document.getElementById("readyQueue");
+
+el.innerHTML = "";
+
+if (!readyQueue.length) {
+
+const empty = document.createElement("div");
+empty.className = "empty";
+empty.textContent = "Empty";
+
+el.appendChild(empty);
+
+return;
+
+}
+
+const sorted = getReadyQueueOrder();
+
+for (const proc of sorted) {
+
+const chip = document.createElement("div");
+
+chip.className = "queue-chip";
+chip.textContent = proc.id;
+
+chip.style.borderColor =
+stateColors[proc.state];
+
+chip.style.color =
+stateColors[proc.state];
+
+el.appendChild(chip);
+
+}
+
+}
+
+
+// -----------------------------
+// RENDER GANTT CHART
+// -----------------------------
+
+function renderGanttChart() {
+const container = document.getElementById("ganttChart");
+container.innerHTML = "";
+
+if (!ganttHistory.length) {
+const empty = document.createElement("div");
+empty.className = "empty";
+empty.textContent = "Timeline will populate as CPU executes ticks...";
+container.appendChild(empty);
+return;
+}
+
+ganttHistory.forEach((block, index) => {
+const div = document.createElement("div");
+div.className = "gantt-block";
+div.style.background = block.color || "#3b82f6";
+div.style.flex = `${block.end - block.start}`;
+
+div.innerHTML = `
+<span>${block.pid}</span>
+<span class="time-marker time-start">${block.start}</span>
+<span class="time-marker time-end">${block.end}</span>
+`;
+
+container.appendChild(div);
+});
+}
+
+
+// -----------------------------
+// RENDER PCB CARDS
+// -----------------------------
+
+function renderPCB() {
+
+const grid = document.getElementById("pcbGrid");
+
+grid.innerHTML = "";
+
+if (!processes.length) {
+
+const empty = document.createElement("div");
+empty.className = "empty";
+empty.textContent = "No processes available";
+
+grid.appendChild(empty);
+
+return;
+
+}
+
+for (const proc of processes) {
+
+const card = document.createElement("div");
+
+card.className = "pcb-card";
+
+card.style.setProperty(
+"--state-color",
+stateColors[proc.state]
+);
+
+const pill = document.createElement("div");
+
+pill.className = "state-pill";
+pill.textContent = proc.state;
+
+const title = document.createElement("div");
+
+title.className = "pcb-title";
+title.textContent = "PCB: " + proc.id;
+
+const fields = document.createElement("div");
+
+fields.className = "pcb-fields";
+
+const info = [
+["PID", proc.id],
+["State", proc.state],
+["Priority", proc.priority],
+["Arrival", proc.arrival],
+["PC", proc.pc],
+["Burst Left", proc.burstLeft],
+["CPU Time", proc.cpuTime],
+["Registers",
+`[${proc.registers.pc}, ${proc.registers.sp}, ${proc.registers.ax}, ${proc.registers.bx}]`
+]
+];
+
+for (const [label, value] of info) {
+
+const cell = document.createElement("div");
+
+const strong = document.createElement("strong");
+strong.textContent = label;
+
+const span = document.createElement("span");
+span.textContent = value;
+
+cell.appendChild(strong);
+cell.appendChild(span);
+
+fields.appendChild(cell);
+
+}
+
+card.appendChild(pill);
+card.appendChild(title);
+card.appendChild(fields);
+
+grid.appendChild(card);
+
+}
+
+}
+
+
+// -----------------------------
+// RENDER PROCESS SUMMARY
+// -----------------------------
+
+function renderSummary() {
+
+const total = processes.length;
+
+const running = processes.filter(
+p => p.state === "RUNNING"
+).length;
+
+const waiting = processes.filter(
+p => p.state === "WAITING" || p.state === "READY"
+).length;
+
+document.getElementById("totalProcesses").textContent =
+`Total: ${total}`;
+
+document.getElementById("runningCount").textContent =
+`Running: ${running}`;
+
+document.getElementById("waitingCount").textContent =
+`Waiting/Ready: ${waiting}`;
+
+}
+
+
+// -----------------------------
+// PERFORMANCE TABLE
+// -----------------------------
+
+function renderPerformanceTable() {
+
+const tbody = document.getElementById("summaryTableBody");
+
+tbody.innerHTML = "";
+
+for (const proc of processes) {
+
+const row = document.createElement("tr");
+
+const values = [
+proc.id,
+proc.arrival,
+proc.burst,
+proc.priority,
+proc.completionTime ?? "-",
+proc.completionTime !== null ? proc.waitingTime : "-",
+proc.completionTime !== null ? proc.turnaroundTime : "-",
+proc.responseTime ?? "-",
+proc.state
+];
+
+values.forEach(value => {
+
+const td = document.createElement("td");
+td.textContent = value;
+
+row.appendChild(td);
+
+});
+
+tbody.appendChild(row);
+
+}
+
+}
+
+
+// -----------------------------
+// CPU DISPLAY
+// -----------------------------
+
+function renderCPU() {
+
+document.getElementById("tickStat").textContent =
+`Tick: ${tick}`;
+
+if (currentProcess) {
+
+document.getElementById("cpuProcess").textContent =
+currentProcess.id;
+
+document.getElementById("modeStat").textContent =
+"Mode: RUNNING";
+
+} else {
+
+document.getElementById("cpuProcess").textContent =
+"Idle";
+
+document.getElementById("modeStat").textContent =
+"Mode: Idle";
+
+}
+
+}
+
+
+// -----------------------------
+// PERFORMANCE METRICS
+// -----------------------------
+
+function calculateMetrics() {
+
+const completed = processes.filter(
+p => p.completionTime !== null
+);
+
+const setValue = (id, value) => {
+document.getElementById(id).textContent = value;
+};
+
+if (!completed.length) {
+
+setValue("avgWaitingValue", "0.00");
+setValue("avgTurnaroundValue", "0.00");
+setValue("avgResponseValue", "0.00");
+setValue("cpuUtilValue", "0.00%");
+
+return;
+
+}
+
+const avgWaiting =
+completed.reduce(
+(sum, p) => sum + p.waitingTime, 0
+) / completed.length;
+
+const avgTurnaround =
+completed.reduce(
+(sum, p) => sum + p.turnaroundTime, 0
+) / completed.length;
+
+const avgResponse =
+completed.reduce(
+(sum, p) => sum + p.responseTime, 0
+) / completed.length;
+
+const totalBurst =
+completed.reduce(
+(sum, p) => sum + p.burst, 0
+);
+
+const totalTime = Math.max(
+...completed.map(p => p.completionTime)
+);
+
+const cpuUtil =
+totalTime > 0
+? (totalBurst / totalTime) * 100
+: 0;
+
+setValue("avgWaitingValue", avgWaiting.toFixed(2));
+
+setValue(
+"avgTurnaroundValue",
+avgTurnaround.toFixed(2)
+);
+
+setValue(
+"avgResponseValue",
+avgResponse.toFixed(2)
+);
+
+setValue(
+"cpuUtilValue",
+cpuUtil.toFixed(2) + "%"
+);
+
+}
+
+
+// -----------------------------
+// MAIN RENDER
+// -----------------------------
+
+function render() {
+
+renderCPU();
+renderReadyQueue();
+renderPCB();
+renderSummary();
+renderPerformanceTable();
+renderGanttChart();
+calculateMetrics();
+
+}
+
+
+// -----------------------------
+// START / STOP
+// -----------------------------
+
+function start() {
+
+if (autoRunning) return;
+
+if (!processes.length) {
+logMessage("Please apply processes first.");
+return;
+}
+
+if (
+processes.every(p => p.state === "TERMINATED")
+) {
+logMessage("All processes have finished. Reset to run again.");
+return;
+}
+
+autoRunning = true;
+
+document.getElementById("startStopBtn").textContent =
+"Stop";
+
+autoTimer = setInterval(() => {
+
+if (
+processes.every(p => p.state === "TERMINATED")
+) {
+stop();
+return;
+}
+
+stepSimulation();
+
+}, 900);
+
+}
+
+
+function stop() {
+
+autoRunning = false;
+
+document.getElementById("startStopBtn").textContent =
+"Start";
+
+if (autoTimer) {
+clearInterval(autoTimer);
+}
+
+autoTimer = null;
+
+}
+
+
+// -----------------------------
+// RESET SIMULATION
+// -----------------------------
+
+function resetSimulation() {
+
+stop();
+
+readyQueue = [];
+currentProcess = null;
+ganttHistory = [];
+
+tick = 0;
+rrSliceUsed = 0;
+
+processes = processes.map(p => ({
+
+...p,
+
+state: "NEW",
+
+burstLeft: p.burst,
+
+pc: 0,
+cpuTime: 0,
+
+completionTime: null,
+
+waitingTime: 0,
+turnaroundTime: 0,
+responseTime: null,
+
+firstRunStart: null,
+
+registers: {
+pc: 0,
+sp: p.burst,
+ax: 0,
+bx: p.priority
+}
+
+}));
+
+initLog();
+
+logMessage(
+`Simulation reset. Algorithm: ${selectedAlgorithm.toUpperCase()}`
+);
+
+render();
+
+}
+
+
+// -----------------------------
+// EVENT LISTENERS
+// -----------------------------
+
+document.getElementById("startStopBtn")
+.addEventListener("click", () => {
+
+if (autoRunning) {
+stop();
+} else {
+start();
+}
+
+});
+
+
+document.getElementById("stepBtn")
+.addEventListener("click", () => {
+
+if (!processes.length) {
+logMessage("Please apply processes first.");
+return;
+}
+
+if (
+processes.every(p => p.state === "TERMINATED")
+) {
+logMessage("All processes have finished.");
+return;
+}
+
+stepSimulation();
+
+});
+
+
+document.getElementById("resetBtn")
+.addEventListener("click", resetSimulation);
+
+
+document.getElementById("algorithmSelect")
+.addEventListener("change", event => {
+
+selectedAlgorithm = event.target.value;
+
+resetSimulation();
+
+});
+
+
+document.getElementById("generateRowsBtn")
+.addEventListener("click", () => {
+
+const count = Math.min(
+20,
+Math.max(
+1,
+Number(document.getElementById("processCountInput").value) || 4
+)
+);
+
+document.getElementById("processCountInput").value = count;
+
+renderProcessTable(
+generateDefaultRows(count)
+);
+
+});
+
+
+document.getElementById("addRowBtn")
+.addEventListener("click", () => {
+
+const rows = readProcessTableRows();
+
+if (rows.length >= 20) {
+alert("Maximum 20 processes allowed.");
+return;
+}
+
+rows.push({
+
+pid: "P" + (rows.length + 1),
+arrival: 0,
+burst: 3,
+priority: 1
+
+});
+
+renderProcessTable(rows);
+
+});
+
+
+document.getElementById("applyBtn")
+.addEventListener("click", () => {
+
+applyManualProcesses();
+
+});
+
+
+document.getElementById("rrQuantumInput")
+.addEventListener("change", () => {
+
+resetSimulation();
+
+});
+
+// Initial startup
+renderProcessTable();
+applyManualProcesses();
+
+</script>
+</body>
+</html>
